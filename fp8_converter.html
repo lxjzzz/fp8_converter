@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FP8 Converter</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+        }
+        .converter-container {
+            background-color: #fff;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 1400px;
+            padding: 25px;
+            box-sizing: border-box;
+        }
+        h2 {
+            text-align: center;
+            color: #333;
+            margin-top: 0;
+            margin-bottom: 30px;
+            background-color: #e0f2f7;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .header-grid {
+            display: grid;
+            grid-template-columns: 100px 1fr 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+            align-items: stretch;
+            text-align: center;
+        }
+        .header-cell {
+            padding: 10px;
+            font-weight: bold;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 5px;
+            min-height: 50px;
+            box-sizing: border-box;
+        }
+        .header-label {
+            background-color: #f0f0f0;
+            color: #333;
+            text-align: left;
+            padding-left: 15px;
+        }
+        .header-sign { background-color: #90ee90; color: #333; } /* Light green */
+        .header-exponent { background-color: #e0b0e0; color: #333; } /* Light purple */
+        .header-mantissa { background-color: #add8e6; color: #333; } /* Light blue */
+
+        .section-row {
+            display: grid;
+            grid-template-columns: 100px 1fr 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 10px;
+            align-items: center;
+        }
+        .row-label {
+            text-align: right;
+            padding-right: 10px;
+            font-weight: bold;
+            color: #555;
+        }
+        .data-cell {
+            padding: 8px 10px;
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            text-align: center;
+            min-height: 34px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-sizing: border-box;
+        }
+        .input-binary-bits {
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+        }
+        .input-binary-bits input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            margin: 0;
+            vertical-align: middle;
+        }
+        .input-binary-bits span {
+            font-size: 0.9em;
+            color: #777;
+        }
+
+        .result-section {
+            margin-top: 30px;
+            border-top: 1px solid #eee;
+            padding-top: 20px;
+        }
+        .result-row {
+            display: grid;
+            grid-template-columns: 200px 1fr 60px; /* Label, Input, Button */
+            gap: 10px;
+            margin-bottom: 15px;
+            align-items: center;
+        }
+        .result-label {
+            text-align: right;
+            font-weight: bold;
+            color: #333;
+        }
+        .result-input {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 1em;
+            box-sizing: border-box;
+            background-color: #fdfdfd;
+        }
+        .result-input[readonly] {
+            background-color: #eee;
+            color: #555;
+        }
+        .action-button {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1em;
+            color: #fff;
+            min-width: 50px;
+        }
+        .button-green { background-color: #28a745; }
+        .button-red { background-color: #dc3545; }
+
+        .format-selection {
+            text-align: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee;
+        }
+        .format-selection label {
+            margin-right: 20px;
+            font-weight: bold;
+            color: #555;
+        }
+        .format-selection input[type="radio"] {
+            margin-right: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="converter-container">
+        <h2>FP8 Converter</h2>
+
+        <div class="format-selection">
+            <label>
+                <input type="radio" name="fp8_format" value="e5m2" checked onchange="updateFormat()"> E5M2 (1-5-2)
+            </label>
+            <label>
+                <input type="radio" name="fp8_format" value="e4m3" onchange="updateFormat()"> E4M3 (1-4-3)
+            </label>
+        </div>
+
+        <div class="header-grid">
+            <div class="header-label"></div>
+            <div class="header-cell header-sign">Sign</div>
+            <div class="header-cell header-exponent">Exponent</div>
+            <div class="header-cell header-mantissa">Mantissa</div>
+        </div>
+
+        <div class="section-row">
+            <div class="row-label">Value:</div>
+            <div class="data-cell" id="displaySignValue">+1</div>
+            <div class="data-cell" id="displayExponentValue">2<sup>-?</sup></div>
+            <div class="data-cell" id="displayMantissaValue">?</div>
+        </div>
+
+        <div class="section-row">
+            <div class="row-label">Encoded as:</div>
+            <div class="data-cell" id="displaySignBit">0</div>
+            <div class="data-cell" id="displayExponentBits">00000</div>
+            <div class="data-cell" id="displayMantissaBits">00</div>
+        </div>
+
+        <div class="section-row">
+            <div class="row-label">Binary:</div>
+            <div class="input-binary-bits">
+                <input type="checkbox" id="binaryBit7" onchange="binaryToDecimal()">
+            </div>
+            <div class="input-binary-bits" id="exponentBinaryInputs">
+                <input type="checkbox" id="binaryBit6" onchange="binaryToDecimal()">
+                <input type="checkbox" id="binaryBit5" onchange="binaryToDecimal()">
+                <input type="checkbox" id="binaryBit4" onchange="binaryToDecimal()">
+                <input type="checkbox" id="binaryBit3" onchange="binaryToDecimal()">
+                <input type="checkbox" id="binaryBit2" onchange="binaryToDecimal()">
+            </div>
+            <div class="input-binary-bits" id="mantissaBinaryInputs">
+                <input type="checkbox" id="binaryBit1" onchange="binaryToDecimal()">
+                <input type="checkbox" id="binaryBit0" onchange="binaryToDecimal()">
+            </div>
+        </div>
+
+        <div class="result-section">
+            <div class="result-row">
+                <div class="result-label">Decimal Representation</div>
+                <input type="text" class="result-input" id="decimalInput" value="0" oninput="decimalToBinary()">
+                <button id="btnInc" class="action-button button-green">1</button>
+            </div>
+
+            <div class="result-row">
+                <div class="result-label">Value actually stored in float:</div>
+                <input type="text" class="result-input" id="storedValue" value="0" readonly>
+                <div></div>
+            </div>
+
+            <div class="result-row">
+                <div class="result-label">Error due to conversion:</div>
+                <input type="text" class="result-input" id="conversionError" value="0" readonly>
+                <button id="btnDec" class="action-button button-red">-1</button>
+            </div>
+
+            <div class="result-row">
+                <div class="result-label">Binary Representation</div>
+                <input type="text" class="result-input" id="binaryRepresentation" value="00000000" oninput="binaryInputToBits()" onblur="binaryBlurNormalize()">
+                <div></div>
+            </div>
+
+            <div class="result-row">
+                <div class="result-label">Hexadecimal Representation</div>
+                <input type="text" class="result-input" id="hexRepresentation" value="00" oninput="hexInputToBits()" onblur="hexBlurNormalize()">
+                <button id="btnZero" class="action-button button-green">0</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let EXPO_BITS;
+        let MANT_BITS;
+        let EXP_BIAS;
+
+        function updateFormat() {
+            const format = document.querySelector('input[name="fp8_format"]:checked').value;
+
+            if (format === 'e5m2') {
+                EXPO_BITS = 5;
+                MANT_BITS = 2;
+                EXP_BIAS = 15; // For E5M2
+            } else { // e4m3
+                EXPO_BITS = 4;
+                MANT_BITS = 3;
+                EXP_BIAS = 7; // For E4M3
+            }
+
+            // Update header and binary input structure
+            // Initialize encoded-as displays to decimal 0 (we show decimal values now)
+            document.getElementById('displayExponentBits').innerText = '0';
+            document.getElementById('displayMantissaBits').innerText = '0';
+
+            const expInputsContainer = document.getElementById('exponentBinaryInputs');
+            const mantInputsContainer = document.getElementById('mantissaBinaryInputs');
+
+            expInputsContainer.innerHTML = '';
+            mantInputsContainer.innerHTML = '';
+
+            // Recreate exponent checkboxes
+            for (let i = EXPO_BITS - 1; i >= 0; i--) {
+                const input = document.createElement('input');
+                input.type = 'checkbox';
+                input.id = `binaryBit${6 + i - (5 - EXPO_BITS)}`; // Adjust ID based on position
+                input.onchange = binaryToDecimal;
+                expInputsContainer.appendChild(input);
+            }
+
+            // Recreate mantissa checkboxes
+            for (let i = MANT_BITS - 1; i >= 0; i--) {
+                const input = document.createElement('input');
+                input.type = 'checkbox';
+                input.id = `binaryBit${i}`; // Mantissa bits are from 0 upwards
+                input.onchange = binaryToDecimal;
+                mantInputsContainer.appendChild(input);
+            }
+            
+            // Re-evaluate current state
+            binaryToDecimal();
+        }
+
+        function binaryToDecimal() {
+            let binaryString = "";
+            const signBit = document.getElementById('binaryBit7').checked ? '1' : '0';
+            binaryString += signBit;
+
+            let exponentBits = "";
+            const expInputsContainer = document.getElementById('exponentBinaryInputs');
+            Array.from(expInputsContainer.children).forEach(input => {
+                if (input.type === 'checkbox') {
+                    exponentBits += input.checked ? '1' : '0';
+                }
+            });
+            binaryString += exponentBits;
+
+            let mantissaBits = "";
+            const mantInputsContainer = document.getElementById('mantissaBinaryInputs');
+            Array.from(mantInputsContainer.children).forEach(input => {
+                if (input.type === 'checkbox') {
+                    mantissaBits += input.checked ? '1' : '0';
+                }
+            });
+            binaryString += mantissaBits;
+
+            document.getElementById('displaySignBit').innerText = signBit;
+            // Show exponent and mantissa as decimal integers (not binary strings)
+            const expDecimal = exponentBits === '' ? 0 : parseInt(exponentBits, 2);
+            const mantDecimal = mantissaBits === '' ? 0 : parseInt(mantissaBits, 2);
+            document.getElementById('displayExponentBits').innerText = String(expDecimal);
+            document.getElementById('displayMantissaBits').innerText = String(mantDecimal);
+            const binEl = document.getElementById('binaryRepresentation');
+            const hexEl = document.getElementById('hexRepresentation');
+            if (document.activeElement !== binEl) {
+                binEl.value = binaryString;
+            }
+            if (document.activeElement !== hexEl) {
+                hexEl.value = parseInt(binaryString, 2).toString(16).toUpperCase().padStart(2, '0');
+            }
+
+            // FP8 conversion logic
+            const s = parseInt(signBit, 2);
+            const e = parseInt(exponentBits, 2);
+            const m = parseInt(mantissaBits, 2);
+
+            let value;
+            let exponentValueDisplay;
+            let mantissaValueDisplay;
+
+            // Determine if it's subnormal, normal, or infinity/NaN
+            const maxExpValue = (1 << EXPO_BITS) - 1; // All ones for exponent bits
+
+            if (e === 0) { // Subnormal or Zero
+                if (m === 0) { // Zero
+                    value = (s === 0) ? 0 : -0; // Positive or negative zero
+                    exponentValueDisplay = `2<sup>${1 - EXP_BIAS}</sup>`; // Smallest exponent for subnormals
+                    mantissaValueDisplay = (0).toFixed(6);
+                } else { // Subnormal
+                    const fractionalMantissa = m / (1 << MANT_BITS); // M / 2^MANT_BITS
+                    value = Math.pow(-1, s) * fractionalMantissa * Math.pow(2, 1 - EXP_BIAS);
+                    exponentValueDisplay = `2<sup>${1 - EXP_BIAS}</sup>`;
+                    mantissaValueDisplay = fractionalMantissa.toFixed(6);
+                }
+            } else if (e === maxExpValue) { // Infinity or NaN
+                if (m === 0) { // Infinity
+                    value = (s === 0) ? Infinity : -Infinity;
+                    exponentValueDisplay = `Inf`;
+                    mantissaValueDisplay = "N/A";
+                } else { // NaN
+                    value = NaN;
+                    exponentValueDisplay = `NaN`;
+                    mantissaValueDisplay = "N/A";
+                }
+            } else { // Normal
+                const exponent = e - EXP_BIAS;
+                const fractionalMantissa = 1 + (m / (1 << MANT_BITS)); // 1.M
+                value = Math.pow(-1, s) * fractionalMantissa * Math.pow(2, exponent);
+                exponentValueDisplay = `2<sup>${exponent}</sup>`;
+                mantissaValueDisplay = fractionalMantissa.toFixed(6);
+            }
+
+            document.getElementById('displaySignValue').innerText = (s === 0) ? '+1' : '-1';
+            document.getElementById('displayExponentValue').innerHTML = exponentValueDisplay;
+            document.getElementById('displayMantissaValue').innerText = mantissaValueDisplay;
+            document.getElementById('storedValue').value = value;
+
+            // Only update decimal input if the user is not actively editing it (i.e., it does not have focus)
+            const decimalEl = document.getElementById('decimalInput');
+            if (document.activeElement !== decimalEl) {
+                // Format value for display but preserve simple strings for special values
+                if (Number.isFinite(value)) {
+                    decimalEl.value = String(value);
+                } else if (value === Infinity) {
+                    decimalEl.value = "Infinity";
+                } else if (value === -Infinity) {
+                    decimalEl.value = "-Infinity";
+                } else {
+                    decimalEl.value = "NaN";
+                }
+            }
+
+            // Compute conversion error relative to the user's current decimal input if parseable
+            const originalDecimal = parseFloat(decimalEl.value);
+            if (!isNaN(originalDecimal) && isFinite(originalDecimal) && isFinite(value)) {
+                document.getElementById('conversionError').value = (value - originalDecimal).toPrecision(6);
+            } else {
+                document.getElementById('conversionError').value = "N/A";
+            }
+        }
+
+        function decimalToBinary() {
+            const decimalRaw = document.getElementById('decimalInput').value.trim();
+
+            // Allow partial inputs like '-', '.', '-.', '0.' without rejecting immediately.
+            if (decimalRaw === '' || decimalRaw === '-' || decimalRaw === '.' || decimalRaw === '-.') {
+                // Do not change binary bits while the user is typing an incomplete number
+                return;
+            }
+
+            let decimalValue = parseFloat(decimalRaw);
+
+            if (isNaN(decimalValue)) {
+                // If it's not a parseable number, don't attempt conversion, just reset displays
+                resetBinaryInputs();
+                document.getElementById('displaySignValue').innerText = '+1';
+                document.getElementById('displayExponentValue').innerHTML = `2<sup>-?</sup>`;
+                document.getElementById('displayMantissaValue').innerText = '?';
+                document.getElementById('storedValue').value = "NaN";
+                document.getElementById('conversionError').value = "N/A";
+                document.getElementById('binaryRepresentation').value = "0".repeat(8);
+                document.getElementById('hexRepresentation').value = "00";
+                return;
+            }
+
+            let s = 0;
+            if (decimalValue < 0) {
+                s = 1;
+                decimalValue = Math.abs(decimalValue);
+            }
+
+            let e = 0;
+            let m = 0;
+            let binaryString = "";
+
+            const maxMantissaValue = (1 << MANT_BITS) - 1; // Maximum integer value for mantissa bits
+            const maxExponentValue = (1 << EXPO_BITS) - 1; // Maximum integer value for exponent bits
+
+            if (decimalValue === 0) {
+                // All zeros for 0
+                e = 0;
+                m = 0;
+            } else if (decimalValue === Infinity) {
+                 s = 0; e = maxExponentValue; m = 0; // +Infinity
+            } else if (decimalValue === -Infinity) {
+                 s = 1; e = maxExponentValue; m = 0; // -Infinity
+            } else if (decimalValue > 0 && decimalValue < Math.pow(2, 1 - EXP_BIAS)) {
+                // Subnormal range for normal numbers starts at 2^(1-BIAS)
+                // For subnormals, e is 0
+                // Value = (-1)^s * (0.M) * 2^(1-BIAS)
+                // So (0.M) = Value / 2^(1-BIAS)
+                // M = (Value / 2^(1-BIAS)) * 2^MANT_BITS
+                e = 0;
+                let subnormalMantissa = decimalValue / Math.pow(2, 1 - EXP_BIAS);
+                m = Math.round(subnormalMantissa * (1 << MANT_BITS));
+                if (m > maxMantissaValue) { // If it rounds up to a normal number or beyond
+                    // This could happen if the value is at the edge of subnormal and normal
+                    // For simplicity, we'll clamp, but real FP8 conversion has more nuance
+                    m = maxMantissaValue; 
+                }
+            } else {
+                // Normal numbers
+                let exponentRaw = Math.floor(Math.log2(decimalValue));
+                let mantissaRaw = (decimalValue / Math.pow(2, exponentRaw)) - 1; // 1.M -> M
+
+                e = exponentRaw + EXP_BIAS;
+                m = Math.round(mantissaRaw * (1 << MANT_BITS));
+                
+                // Handle rounding and overflow
+                if (m > maxMantissaValue) { // Mantissa overflow, adjust exponent
+                    m = 0;
+                    e += 1;
+                }
+
+                // Handle exponent overflow / clamping to max finite or infinity
+                if (e >= maxExponentValue) {
+                    e = maxExponentValue;
+                    m = 0; // Clamp to +/- Infinity
+                }
+                // Handle exponent underflow (becomes subnormal or zero)
+                if (e < 1) { // If calculated exponent is too small for normal, convert to subnormal logic
+                    // This is an approximate transition; a full implementation would be more precise.
+                    // For now, if e < 1, it means the actual value is too small to be represented as a normal number.
+                    // It should either be a subnormal or 0.
+                    
+                    // Simple approach: if original decimal was really small, it should be 0 or subnormal
+                    // Recalculate as subnormal if not already done.
+                    if (decimalValue < Math.pow(2, 1 - EXP_BIAS)) { // Should already be caught above, but as a fallback
+                         e = 0; // Subnormal exponent
+                         let subnormalMantissa = decimalValue / Math.pow(2, 1 - EXP_BIAS);
+                         m = Math.round(subnormalMantissa * (1 << MANT_BITS));
+                         if (m > maxMantissaValue) m = maxMantissaValue;
+                    } else { // Underflow to zero (less than smallest subnormal)
+                        e = 0; m = 0;
+                    }
+                }
+            }
+            
+            // Reconstruct the binary string
+            binaryString += s.toString();
+            binaryString += e.toString(2).padStart(EXPO_BITS, '0');
+            binaryString += m.toString(2).padStart(MANT_BITS, '0');
+
+            // Update checkboxes and display
+            document.getElementById('binaryBit7').checked = (s === 1);
+            
+            const expInputsContainer = document.getElementById('exponentBinaryInputs');
+            Array.from(expInputsContainer.children).forEach((input, index) => {
+                if (input.type === 'checkbox') {
+                    input.checked = (binaryString[1 + index] === '1');
+                }
+            });
+
+            const mantInputsContainer = document.getElementById('mantissaBinaryInputs');
+            Array.from(mantInputsContainer.children).forEach((input, index) => {
+                if (input.type === 'checkbox') {
+                    input.checked = (binaryString[1 + EXPO_BITS + index] === '1');
+                }
+            });
+
+            binaryToDecimal(); // Recalculate based on the updated binary bits to get stored value and error
+        }
+
+        function resetBinaryInputs() {
+            document.getElementById('binaryBit7').checked = false;
+            
+            const expInputsContainer = document.getElementById('exponentBinaryInputs');
+            Array.from(expInputsContainer.children).forEach(input => {
+                if (input.type === 'checkbox') input.checked = false;
+            });
+
+            const mantInputsContainer = document.getElementById('mantissaBinaryInputs');
+            Array.from(mantInputsContainer.children).forEach(input => {
+                if (input.type === 'checkbox') input.checked = false;
+            });
+        }
+
+        function setBitsFromByte(value) {
+            // value: 0-255
+            const bin = value.toString(2).padStart(8, '0');
+            // sign bit
+            document.getElementById('binaryBit7').checked = (bin[0] === '1');
+            const expInputsContainer = document.getElementById('exponentBinaryInputs');
+            Array.from(expInputsContainer.children).forEach((input, index) => {
+                if (input.type === 'checkbox') {
+                    input.checked = (bin[1 + index] === '1');
+                }
+            });
+            const mantInputsContainer = document.getElementById('mantissaBinaryInputs');
+            Array.from(mantInputsContainer.children).forEach((input, index) => {
+                if (input.type === 'checkbox') {
+                    input.checked = (bin[1 + EXPO_BITS + index] === '1');
+                }
+            });
+            document.getElementById('binaryRepresentation').value = bin;
+            document.getElementById('hexRepresentation').value = value.toString(16).toUpperCase().padStart(2, '0');
+        }
+
+        function binaryInputToBits() {
+            const el = document.getElementById('binaryRepresentation');
+            // Allow clearing and partial input while editing; only parse when the user has focus
+            const hasFocus = (document.activeElement === el);
+            let raw = el.value;
+            // If empty and user is editing, allow empty input (don't normalize yet)
+            if (raw === '' && hasFocus) return;
+            let txt = raw.replace(/[^01]/g, '');
+            if (txt.length > 8) txt = txt.slice(0, 8);
+            // If user is still editing and length < 8, don't pad yet — allow partial input
+            if (!(hasFocus && txt.length < 8)) txt = txt.padStart(8, '0');
+            // Update checkboxes
+            document.getElementById('binaryBit7').checked = (txt[0] === '1');
+            const expInputsContainer = document.getElementById('exponentBinaryInputs');
+            Array.from(expInputsContainer.children).forEach((input, index) => {
+                if (input.type === 'checkbox') input.checked = (txt[1 + index] === '1');
+            });
+            const mantInputsContainer = document.getElementById('mantissaBinaryInputs');
+            Array.from(mantInputsContainer.children).forEach((input, index) => {
+                if (input.type === 'checkbox') input.checked = (txt[1 + EXPO_BITS + index] === '1');
+            });
+            // Update displayed binary (if focused, keep user's partial unpadded text; else use normalized)
+            document.getElementById('binaryRepresentation').value = (hasFocus && txt.replace(/^0+/, '') !== '') ? txt.replace(/^0+/, '') : txt.padStart(8, '0');
+            const byte = parseInt(txt, 2) & 0xFF;
+            // Update hex only if hex is not being edited
+            const hexEl = document.getElementById('hexRepresentation');
+            if (document.activeElement !== hexEl) {
+                document.getElementById('hexRepresentation').value = byte.toString(16).toUpperCase().padStart(2, '0');
+            }
+            // update computed values
+            binaryToDecimal();
+        }
+
+        function hexInputToBits() {
+            const el = document.getElementById('hexRepresentation');
+            // Allow empty during editing; only normalize when blurred or when user has typed a hex char
+            const hasFocus = (document.activeElement === el);
+            let raw = el.value.replace(/[^0-9a-fA-F]/g, '');
+            if (raw === '' && hasFocus) return;
+            if (raw.length > 2) raw = raw.slice(-2);
+            const byte = parseInt(raw === '' ? '00' : raw, 16) & 0xFF;
+            // Update hex display only if not focused (or normalize to two digits when not editing)
+            if (!hasFocus) {
+                el.value = byte.toString(16).toUpperCase().padStart(2, '0');
+            }
+            setBitsFromByte(byte);
+            binaryToDecimal();
+        }
+
+        function binaryBlurNormalize() {
+            const el = document.getElementById('binaryRepresentation');
+            let txt = el.value.replace(/[^01]/g, '');
+            if (txt === '') txt = '00000000';
+            if (txt.length > 8) txt = txt.slice(0, 8);
+            txt = txt.padStart(8, '0');
+            el.value = txt;
+            const byte = parseInt(txt, 2) & 0xFF;
+            document.getElementById('hexRepresentation').value = byte.toString(16).toUpperCase().padStart(2, '0');
+            setBitsFromByte(byte);
+            binaryToDecimal();
+        }
+
+        function hexBlurNormalize() {
+            const el = document.getElementById('hexRepresentation');
+            let txt = el.value.replace(/[^0-9a-fA-F]/g, '');
+            if (txt === '') txt = '00';
+            if (txt.length > 2) txt = txt.slice(-2);
+            const byte = parseInt(txt, 16) & 0xFF;
+            el.value = byte.toString(16).toUpperCase().padStart(2, '0');
+            setBitsFromByte(byte);
+            binaryToDecimal();
+        }
+
+        function incrementHex() {
+            const hexEl = document.getElementById('hexRepresentation');
+            let val = parseInt(hexEl.value, 16);
+            if (isNaN(val)) val = 0;
+            val = (val + 1) & 0xFF;
+            setBitsFromByte(val);
+            binaryToDecimal();
+        }
+
+        function decrementHex() {
+            const hexEl = document.getElementById('hexRepresentation');
+            let val = parseInt(hexEl.value, 16);
+            if (isNaN(val)) val = 0;
+            val = (val - 1) & 0xFF;
+            setBitsFromByte(val);
+            binaryToDecimal();
+        }
+
+        function zeroHex() {
+            setBitsFromByte(0);
+            binaryToDecimal();
+        }
+
+        // Long-press helpers for continuous increment/decrement
+        function attachLongPress(element, onStart, onRepeat, onEnd) {
+            let timer = null;
+            let repeating = false;
+
+            const start = (e) => {
+                e.preventDefault();
+                onStart();
+                // small delay before repeating
+                timer = setTimeout(() => {
+                    repeating = true;
+                    // repeat at 100ms interval
+                    timer = setInterval(() => onRepeat(), 100);
+                }, 400);
+            };
+
+            const stop = (e) => {
+                if (timer) {
+                    clearInterval(timer);
+                    timer = null;
+                }
+                if (repeating) {
+                    repeating = false;
+                }
+                if (onEnd) onEnd();
+            };
+
+            element.addEventListener('mousedown', start);
+            element.addEventListener('touchstart', start);
+            document.addEventListener('mouseup', stop);
+            document.addEventListener('touchend', stop);
+            document.addEventListener('touchcancel', stop);
+        }
+
+        // Initialize on load
+        window.onload = () => {
+            updateFormat(); // Set initial format (E5M2) and trigger conversion
+
+            // Bind long-press to increment and decrement buttons
+            const btnInc = document.getElementById('btnInc');
+            const btnDec = document.getElementById('btnDec');
+            const btnZero = document.getElementById('btnZero');
+
+            attachLongPress(btnInc, incrementHex, incrementHex, () => {});
+            attachLongPress(btnDec, decrementHex, decrementHex, () => {});
+
+            // Zero button single click
+            btnZero.addEventListener('click', zeroHex);
+        };
+    </script>
+</body>
+</html>
